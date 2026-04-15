@@ -99,37 +99,37 @@ local BOSSES = {
         key         = "Ysondre",
         name        = "Ysondre",
         tag         = "Ysondre",
-        zone        = "Feralas",
         size        = "20-40 Man",
         respawn     = "72-144 hrs",
         dragonGroup = true,
+        summonZone  = "Feralas",
     },
     {
         key         = "Taerar",
         name        = "Taerar",
         tag         = "Taerar",
-        zone        = "Duskwood",
         size        = "20-40 Man",
         respawn     = "72-144 hrs",
         dragonGroup = true,
+        summonZone  = "Duskwood",
     },
     {
         key         = "Emeriss",
         name        = "Emeriss",
         tag         = "Emeriss",
-        zone        = "Hinterlands",
         size        = "20-40 Man",
         respawn     = "72-144 hrs",
         dragonGroup = true,
+        summonZone  = "Hinterlands",
     },
     {
         key         = "Lethon",
         name        = "Lethon",
         tag         = "Lethon",
-        zone        = "Ashenvale",
         size        = "20-40 Man",
         respawn     = "72-144 hrs",
         dragonGroup = true,
+        summonZone  = "Ashenvale",
     },
     {
         key        = "Clackora",
@@ -156,12 +156,11 @@ local BOSSES = {
     },
 }
 
--- Dragons share one summoning block
+-- Dragons share one summoning block; summonZone is per-dragon
 local DRAGON_SUMMON_ITEM  = "Wail of Ysera"
 local DRAGON_SUMMON_ID    = "42165"
 local DRAGON_SUMMON_FROM  = "Favor of Erennius - Emerald Sanctum (Hard Mode)"
-local DRAGON_SUMMON_QUEST = "Bring 10x Bright Dream Shard to the Stone of Dreams at the dragon's spawn portal."
-local DRAGON_ZONES        = "Ashenvale (Lethon) / Feralas (Ysondre) / Duskwood (Taerar) / Hinterlands (Emeriss)"
+local DRAGON_ALL_ZONES    = "Ashenvale / Duskwood / Feralas / Hinterlands"
 local DRAGON_RESPAWN      = "Timer starts only after all four dragons are dead."
 
 -- Layout
@@ -265,7 +264,11 @@ local function BuildTooltip( hit )
     GameTooltip:SetText( displayName, 1, 1, 1 )
 
     -- Zone and size
-    GameTooltip:AddLine( ( b.zone or "Unknown" ) .. "  |  " .. ( b.size or "" ), 0.8, 0.8, 0.6 )
+    if b.dragonGroup then
+        GameTooltip:AddLine( DRAGON_ALL_ZONES .. "  |  " .. ( b.size or "" ), 0.8, 0.8, 0.6 )
+    else
+        GameTooltip:AddLine( ( b.zone or "Unknown" ) .. "  |  " .. ( b.size or "" ), 0.8, 0.8, 0.6 )
+    end
 
     -- Loot status
     GameTooltip:AddLine( " " )
@@ -286,9 +289,7 @@ local function BuildTooltip( hit )
     if b.noRespawn then
         GameTooltip:AddLine( "Natural spawn: Summonable only.", 0.6, 0.6, 0.6 )
     elseif b.dragonGroup then
-        GameTooltip:AddLine( "Natural respawn: ~" .. b.respawn, 0.6, 0.6, 0.6 )
-        GameTooltip:AddLine( DRAGON_RESPAWN, 0.6, 0.6, 0.6 )
-        GameTooltip:AddLine( DRAGON_ZONES, 0.6, 0.6, 0.6 )
+        GameTooltip:AddLine( "Natural respawn: ~" .. b.respawn .. " (" .. DRAGON_RESPAWN .. ")", 0.6, 0.6, 0.6 )
     elseif b.respawnExact then
         GameTooltip:AddLine( "Natural respawn: " .. b.respawn, 0.6, 0.6, 0.6 )
     else
@@ -300,7 +301,7 @@ local function BuildTooltip( hit )
     if b.dragonGroup then
         GameTooltip:AddLine( "Summoning Item: " .. DRAGON_SUMMON_ITEM .. " - ID:" .. DRAGON_SUMMON_ID, 0.9, 0.8, 0.4 )
         GameTooltip:AddLine( "From: " .. DRAGON_SUMMON_FROM, 0.75, 0.75, 0.75 )
-        GameTooltip:AddLine( "Quest: " .. DRAGON_SUMMON_QUEST, 0.65, 0.65, 0.65 )
+        GameTooltip:AddLine( "Quest: Bring 10x Bright Dream Shard to the Stone of Dreams in " .. ( b.summonZone or "the dragon's zone" ) .. ", at the dragon portal.", 0.65, 0.65, 0.65 )
     elseif b.summonItem and b.summonID then
         GameTooltip:AddLine( "Summoning Item: " .. b.summonItem .. " - ID:" .. b.summonID, 0.9, 0.8, 0.4 )
         if b.summonFrom then
