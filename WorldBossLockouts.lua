@@ -2,7 +2,8 @@
 -- Companion panel anchored below RaidInfoFrame. No dependencies.
 -- Lua 5.0 compatible (TurtleWoW 1.12 client).
 
-local LOCK_FRAGMENT = "locked out from receiving loot from"
+local LOCK_FRAGMENT          = "locked out from receiving loot from"
+local PERSONAL_LOCK_FRAGMENT = "not eligible to receive loot from"
 
 -- Field reference:
 -- name        = display name in the panel row
@@ -240,7 +241,8 @@ end
 
 local function DetectLock( msg )
     if not msg then return end
-    if not string.find( msg, LOCK_FRAGMENT ) then return end
+    if not string.find( msg, LOCK_FRAGMENT ) and
+       not string.find( msg, PERSONAL_LOCK_FRAGMENT ) then return end
     for _, boss in ipairs( BOSSES ) do
         if not boss.noLockout and string.find( msg, boss.tag ) then
             if not IsLocked( boss.key ) then

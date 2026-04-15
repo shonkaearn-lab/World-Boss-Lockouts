@@ -6,3 +6,4 @@
 ## SavedVariables: WorldBossLockouts_Data
 
 WorldBossLockouts.lua
+WBL_Jessy.lua
