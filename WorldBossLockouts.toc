@@ -2,8 +2,7 @@
 ## Title: WorldBossLockouts
 ## Notes: World boss loot lockout tracker — companion panel to the Raid Info window
 ## Author: You
-## Version: 1.5
+## Version: 1.6
 ## SavedVariables: WorldBossLockouts_Data
 
 WorldBossLockouts.lua
-WBL_Jessy.lua

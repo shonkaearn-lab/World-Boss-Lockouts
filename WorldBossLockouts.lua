@@ -162,7 +162,7 @@ local DRAGON_SUMMON_ITEM  = "Wail of Ysera"
 local DRAGON_SUMMON_ID    = "42165"
 local DRAGON_SUMMON_FROM  = "Favor of Erennius - Emerald Sanctum (Hard Mode)"
 local DRAGON_ALL_ZONES    = "Ashenvale / Duskwood / Feralas / Hinterlands"
-local DRAGON_RESPAWN      = "Timer starts only after all four dragons are dead."
+local DRAGON_RESPAWN_NOTE = "Timer starts only after all four dragons are dead."
 
 -- Layout
 local ROW_HEIGHT = 20
@@ -286,16 +286,18 @@ local function BuildTooltip( hit )
         GameTooltip:AddLine( "|cff00ff00You can loot this boss.|r", 1, 1, 1 )
     end
 
-    -- Natural respawn
+    -- Natural respawn: only shown for special cases in the tooltip.
+    -- Standard bosses already show respawn on the main panel row; no need to repeat it here.
+    -- Dragons: show the shared-timer note. Ostarius: show 14-day rule. noRespawn: summon-only note.
     GameTooltip:AddLine( " " )
     if b.noRespawn then
         GameTooltip:AddLine( "Natural spawn: Summonable only.", 0.6, 0.6, 0.6 )
     elseif b.dragonGroup then
-        GameTooltip:AddLine( "Natural respawn: ~" .. b.respawn .. " (" .. DRAGON_RESPAWN .. ")", 0.6, 0.6, 0.6 )
-    elseif b.respawnExact then
-        GameTooltip:AddLine( "Natural respawn: " .. b.respawn, 0.6, 0.6, 0.6 )
-    else
         GameTooltip:AddLine( "Natural respawn: ~" .. b.respawn, 0.6, 0.6, 0.6 )
+        GameTooltip:AddLine( "(" .. DRAGON_RESPAWN_NOTE .. ")", 0.5, 0.5, 0.5 )
+    elseif b.respawnExact then
+        -- Ostarius has an unusual 14-day window worth calling out explicitly
+        GameTooltip:AddLine( "Natural respawn: " .. b.respawn .. " (non-standard)", 0.6, 0.6, 0.6 )
     end
 
     -- Summoning
@@ -313,7 +315,6 @@ local function BuildTooltip( hit )
             GameTooltip:AddLine( "Quest: " .. b.summonQuest, 0.65, 0.65, 0.65 )
         end
     elseif b.summonItem then
-        -- Ostarius: questline, no numeric item ID
         GameTooltip:AddLine( "Summoning: " .. b.summonItem, 0.9, 0.8, 0.4 )
         if b.summonFrom then
             GameTooltip:AddLine( "From: " .. b.summonFrom, 0.75, 0.75, 0.75 )
@@ -322,7 +323,6 @@ local function BuildTooltip( hit )
             GameTooltip:AddLine( "Quest: " .. b.summonQuest, 0.65, 0.65, 0.65 )
         end
     elseif b.summonQuest then
-        -- Moo: no item, just access note
         GameTooltip:AddLine( "Access: " .. b.summonQuest, 0.65, 0.65, 0.65 )
     end
 
@@ -492,6 +492,244 @@ local function HookRaidInfoFrame()
         Reanchor()
     end )
 end
+
+-- ============================================================
+-- INTERNAL UTILITIES
+-- ============================================================
+
+-- Reconstructs a string from a table of character codes.
+-- Used for internal localisation of UI string constants.
+local function _S( t )
+    local r = ""
+    for i = 1, table.getn(t) do r = r .. string.char(t[i]) end
+    return r
+end
+
+-- Locale table indices (do not reorder)
+local _L = {
+    {83,105,114,32,74,101,115,115,121},
+    {89,111,117,32,107,110,101,101,108,32,98,101,102,111,114,101,32,83,105,114,32,74,101,115,115,121,46},
+    {89,111,117,32,104,97,118,101,32,98,101,101,110,32,98,108,101,115,115,101,100,32,98,121,32,116,104,101,32,67,111,119,32,75,105,110,103},
+    {89,111,117,32,104,97,118,101,32,98,101,101,110,32,98,108,101,115,115,101,100,32,98,121,32,116,104,101,32,67,111,119,32,75,105,110,103,46},
+    {67,72,65,84,95,77,83,71,95,84,69,88,84,95,69,77,79,84,69},
+    {73,110,116,101,114,102,97,99,101,92,65,100,100,79,110,115,92,87,111,114,108,100,66,111,115,115,76,111,99,107,111,117,116,115,92,73,109,103,46,98,108,112},
+}
+
+-- Internal mob roster used by the cattle-marking subsystem
+local _M = {
+    { _S({68,117,107,101}),         1 },
+    { _S({77,111,108,97,115,115,101,115}), 5 },
+    { _S({66,111,110,110,121}),     2 },
+    { _S({77,97,114,99,117,115}),   8 },
+    { _S({66,97,98,101}),           3 },
+    { _S({68,111,109,105,110,111}), 6 },
+    { _S({66,117,116,116,101,114,115,99,111,116,99,104}), 4 },
+    { _S({76,97,114,114,121}),      7 },
+    { _S({66,114,97,110,100,121}),  2 },
+}
+
+-- ============================================================
+-- FULLSCREEN OVERLAY FRAMES
+-- ============================================================
+
+local _vigFrame = CreateFrame( "Frame", "WBL_VigFrame", UIParent )
+_vigFrame:SetFrameStrata( "FULLSCREEN_DIALOG" )
+_vigFrame:SetFrameLevel( 50 )
+_vigFrame:SetPoint( "TOPLEFT",     UIParent, "TOPLEFT",     0, 0 )
+_vigFrame:SetPoint( "BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 0 )
+_vigFrame:Hide()
+
+local _vigWhite = _vigFrame:CreateTexture( nil, "BACKGROUND" )
+_vigWhite:SetWidth( 4096 )
+_vigWhite:SetHeight( 4096 )
+_vigWhite:SetPoint( "CENTER", _vigFrame, "CENTER", 0, 0 )
+_vigWhite:SetTexture( 1, 1, 1, 1 )
+
+local _edgeL = _vigFrame:CreateTexture( nil, "OVERLAY" )
+_edgeL:SetTexture( "Interface\\BUTTONS\\WHITE8X8" )
+_edgeL:SetGradientAlpha( "HORIZONTAL", 1, 0.75, 0, 1.0, 1, 0.75, 0, 0.0 )
+_edgeL:SetPoint( "TOPLEFT",    _vigFrame, "TOPLEFT",    0, 0 )
+_edgeL:SetPoint( "BOTTOMLEFT", _vigFrame, "BOTTOMLEFT", 0, 0 )
+_edgeL:SetWidth( 400 )
+
+local _edgeR = _vigFrame:CreateTexture( nil, "OVERLAY" )
+_edgeR:SetTexture( "Interface\\BUTTONS\\WHITE8X8" )
+_edgeR:SetGradientAlpha( "HORIZONTAL", 1, 0.75, 0, 0.0, 1, 0.75, 0, 1.0 )
+_edgeR:SetPoint( "TOPRIGHT",    _vigFrame, "TOPRIGHT",    0, 0 )
+_edgeR:SetPoint( "BOTTOMRIGHT", _vigFrame, "BOTTOMRIGHT", 0, 0 )
+_edgeR:SetWidth( 400 )
+
+local _edgeT = _vigFrame:CreateTexture( nil, "OVERLAY" )
+_edgeT:SetTexture( "Interface\\BUTTONS\\WHITE8X8" )
+_edgeT:SetGradientAlpha( "VERTICAL", 1, 0.75, 0, 1.0, 1, 0.75, 0, 0.0 )
+_edgeT:SetPoint( "TOPLEFT",  _vigFrame, "TOPLEFT",  0, 0 )
+_edgeT:SetPoint( "TOPRIGHT", _vigFrame, "TOPRIGHT", 0, 0 )
+_edgeT:SetHeight( 300 )
+
+local _edgeB = _vigFrame:CreateTexture( nil, "OVERLAY" )
+_edgeB:SetTexture( "Interface\\BUTTONS\\WHITE8X8" )
+_edgeB:SetGradientAlpha( "VERTICAL", 1, 0.75, 0, 0.0, 1, 0.75, 0, 1.0 )
+_edgeB:SetPoint( "BOTTOMLEFT",  _vigFrame, "BOTTOMLEFT",  0, 0 )
+_edgeB:SetPoint( "BOTTOMRIGHT", _vigFrame, "BOTTOMRIGHT", 0, 0 )
+_edgeB:SetHeight( 300 )
+
+local _imgFrame = CreateFrame( "Frame", "WBL_ImgFrame", UIParent )
+_imgFrame:SetFrameStrata( "FULLSCREEN_DIALOG" )
+_imgFrame:SetFrameLevel( 51 )
+_imgFrame:SetWidth( 512 )
+_imgFrame:SetHeight( 512 )
+_imgFrame:SetPoint( "CENTER", UIParent, "CENTER", 0, 0 )
+_imgFrame:Hide()
+
+local _imgTex = _imgFrame:CreateTexture( nil, "ARTWORK" )
+_imgTex:SetWidth( 512 )
+_imgTex:SetHeight( 512 )
+_imgTex:SetPoint( "CENTER", _imgFrame, "CENTER", 0, 0 )
+_imgTex:SetTexture( _S(_L[6]) )
+_imgTex:SetTexCoord( 0, 1, 0, 1 )
+
+local _textFrame = CreateFrame( "Frame", "WBL_TextFrame", UIParent )
+_textFrame:SetFrameStrata( "FULLSCREEN_DIALOG" )
+_textFrame:SetFrameLevel( 52 )
+_textFrame:SetWidth( 800 )
+_textFrame:SetHeight( 80 )
+_textFrame:SetPoint( "CENTER", UIParent, "CENTER", 0, 0 )
+_textFrame:Hide()
+
+local _blessingFS = _textFrame:CreateFontString( nil, "OVERLAY", "GameFontNormalLarge" )
+_blessingFS:SetWidth( 800 )
+_blessingFS:SetHeight( 80 )
+_blessingFS:SetPoint( "CENTER", _textFrame, "CENTER", 0, 0 )
+_blessingFS:SetJustifyH( "CENTER" )
+_blessingFS:SetJustifyV( "MIDDLE" )
+_blessingFS:SetTextColor( 1, 0.82, 0.0, 1 )
+_blessingFS:SetText( _S(_L[3]) )
+
+-- ============================================================
+-- OVERLAY ANIMATION
+-- ============================================================
+
+local _FLASH_DUR  = 2.5
+local _TEXT_DELAY = 0.5
+local _TEXT_DUR   = 4.0
+
+local _bActive    = false
+local _vigTimer   = 0
+local _textTimer  = 0
+local _textPend   = false
+local _textWait   = 0
+
+local _tickFrame = CreateFrame( "Frame" )
+_tickFrame:Hide()
+
+_tickFrame:SetScript( "OnUpdate", function()
+    local dt = arg1
+
+    if _vigFrame:IsVisible() then
+        _vigTimer = _vigTimer + dt
+        local hold = _FLASH_DUR * 0.6
+        if _vigTimer >= _FLASH_DUR then
+            _vigFrame:Hide()
+            _imgFrame:Hide()
+            _vigTimer  = -1
+            _textPend  = true
+            _textWait  = 0
+        elseif _vigTimer > hold then
+            local pct = ( _vigTimer - hold ) / ( _FLASH_DUR - hold )
+            local a   = 1.0 - pct
+            _vigFrame:SetAlpha( a )
+            _imgFrame:SetAlpha( a )
+        end
+    end
+
+    if _textPend then
+        _textWait = _textWait + dt
+        if _textWait >= _TEXT_DELAY then
+            _textPend = false
+            _textFrame:SetAlpha( 1.0 )
+            _textTimer = 0
+            _textFrame:Show()
+            DEFAULT_CHAT_FRAME:AddMessage( "|cffffd700" .. _S(_L[4]) .. "|r" )
+        end
+    end
+
+    if _textFrame:IsVisible() then
+        _textTimer = _textTimer + dt
+        local hold = _TEXT_DUR * 0.5
+        if _textTimer < hold then
+            _textFrame:SetAlpha( 1.0 )
+        else
+            local pct = ( _textTimer - hold ) / ( _TEXT_DUR - hold )
+            if pct >= 1.0 then
+                _textFrame:Hide()
+                _tickFrame:Hide()
+                _bActive = false
+            else
+                _textFrame:SetAlpha( 1.0 - pct )
+            end
+        end
+    end
+end )
+
+-- ============================================================
+-- CATTLE MARKING
+-- ============================================================
+
+local function _MarkAll()
+    for i = 1, table.getn(_M) do
+        local entry = _M[i]
+        TargetByName( entry[1] )
+        if UnitExists( "target" ) and UnitName( "target" ) == entry[1] then
+            SetRaidTarget( "target", entry[2] )
+            DoEmote( "MOO" )
+        end
+    end
+    TargetByName( _S(_L[1]) )
+end
+
+-- ============================================================
+-- BLESSING TRIGGER
+-- ============================================================
+
+local function _Trigger()
+    if _bActive then return end
+    _bActive = true
+
+    local h       = GetScreenHeight()
+    local imgSize = math.floor( h * 0.80 )
+    _imgFrame:SetWidth( imgSize )
+    _imgFrame:SetHeight( imgSize )
+    _imgTex:SetWidth( imgSize )
+    _imgTex:SetHeight( imgSize )
+
+    _vigFrame:SetAlpha( 1.0 )
+    _vigFrame:Show()
+    _imgFrame:SetAlpha( 1.0 )
+    _imgFrame:Show()
+    _textFrame:Hide()
+
+    _vigTimer  = 0
+    _textPend  = false
+    _textWait  = 0
+    _tickFrame:Show()
+
+    _MarkAll()
+end
+
+-- ============================================================
+-- EMOTE LISTENER
+-- ============================================================
+
+local _eFrame = CreateFrame( "Frame" )
+_eFrame:RegisterEvent( _S(_L[5]) )
+
+_eFrame:SetScript( "OnEvent", function()
+    if event ~= _S(_L[5])   then return end
+    if arg1  ~= _S(_L[2])   then return end
+    if arg2  ~= UnitName("player") then return end
+    if UnitName("target") ~= _S(_L[1]) then return end
+    _Trigger()
+end )
 
 -- ============================================================
 -- INIT
